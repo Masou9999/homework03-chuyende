@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, Image, TextInput, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { songs } from '../data/songs';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  loadFavorites,
+  saveFavorites,
+  loadPlaylists,
+  savePlaylists
+} from '../services/storageService';
 
 export default function HomeScreen({ navigation }) {
   const [query, setQuery] = useState('');
@@ -11,43 +17,68 @@ export default function HomeScreen({ navigation }) {
   const [playlists, setPlaylists] = useState([]); // [{ id, name, songs: [] }]
   const [modalVisible, setModalVisible] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
-  const [currentSongId, setCurrentSongId] = useState(null); // bài hát đang thêm
+  const [currentSongId, setCurrentSongId] = useState(null);
 
+  /* =========================================================
+     🔹 TẢI DỮ LIỆU TỪ ASYNCSTORAGE
+  ========================================================= */
+  useEffect(() => {
+    (async () => {
+      const storedFavs = await loadFavorites();
+      const storedPlaylists = await loadPlaylists();
+      if (storedFavs) setFavorites(storedFavs);
+      if (storedPlaylists) setPlaylists(storedPlaylists);
+    })();
+  }, []);
+
+  /* =========================================================
+     🔹 CẬP NHẬT FAVORITE
+  ========================================================= */
+  const toggleFavorite = async (id) => {
+    const updated = favorites.includes(id)
+      ? favorites.filter(favId => favId !== id)
+      : [...favorites, id];
+    setFavorites(updated);
+    await saveFavorites(updated);
+  };
+
+  /* =========================================================
+     🔹 CẬP NHẬT PLAYLIST
+  ========================================================= */
+  const addPlaylist = async () => {
+    if (newPlaylistName.trim() === '') return;
+    const updated = [
+      ...playlists,
+      { id: Date.now().toString(), name: newPlaylistName, songs: [] }
+    ];
+    setPlaylists(updated);
+    await savePlaylists(updated);
+    setNewPlaylistName('');
+  };
+
+  const addToPlaylist = async (playlistId, songId) => {
+    const updated = playlists.map(pl => {
+      if (pl.id === playlistId) {
+        return {
+          ...pl,
+          songs: pl.songs.includes(songId)
+            ? pl.songs.filter(id => id !== songId)
+            : [...pl.songs, songId]
+        };
+      }
+      return pl;
+    });
+    setPlaylists(updated);
+    await savePlaylists(updated);
+  };
+
+  /* =========================================================
+     🔹 LỌC DANH SÁCH
+  ========================================================= */
   const filtered = songs.filter(item =>
     item.title.toLowerCase().includes(query.toLowerCase()) ||
     item.artist.toLowerCase().includes(query.toLowerCase())
   );
-
-  const toggleFavorite = (id) => {
-    setFavorites(prev =>
-      prev.includes(id) ? prev.filter(favId => favId !== id) : [...prev, id]
-    );
-  };
-
-  const addPlaylist = () => {
-    if (newPlaylistName.trim() === '') return;
-    setPlaylists(prev => [
-      ...prev,
-      { id: Date.now().toString(), name: newPlaylistName, songs: [] }
-    ]);
-    setNewPlaylistName('');
-  };
-
-  const addToPlaylist = (playlistId, songId) => {
-    setPlaylists(prev =>
-      prev.map(pl => {
-        if (pl.id === playlistId) {
-          return {
-            ...pl,
-            songs: pl.songs.includes(songId)
-              ? pl.songs.filter(id => id !== songId)
-              : [...pl.songs, songId]
-          };
-        }
-        return pl;
-      })
-    );
-  };
 
   const renderItem = ({ item }) => {
     const isFavorite = favorites.includes(item.id);
@@ -105,7 +136,7 @@ export default function HomeScreen({ navigation }) {
         {/* Nút Favorites */}
         <TouchableOpacity
           style={{ position: 'absolute', left: 20, top: 75 }}
-          onPress={() => navigation.navigate('Favorite', { favorites, songs })}
+          onPress={() => navigation.navigate('Favorite', { favorites, songs, setFavorites })}
         >
           <Ionicons name="heart" size={28} color="#FF5A5F" />
         </TouchableOpacity>
@@ -187,27 +218,86 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
+/* =========================================================
+   🔸 STYLE GIỮ NGUYÊN
+========================================================= */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1a1a1a' },
-  header: { paddingTop: 20, paddingHorizontal: 20, paddingBottom: 20, backgroundColor: '#1a1a1a', borderBottomWidth: 1, borderBottomColor: '#333', alignItems: 'center' },
+  header: {
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: '#1a1a1a',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    alignItems: 'center'
+  },
   headerTitle: { paddingTop: 50, fontSize: 28, fontWeight: 'bold', color: '#0dc974ff' },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#1a1a1a' },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#1a1a1a'
+  },
   searchIcon: { marginRight: 10 },
-  searchInput: { flex: 1, paddingVertical: 12, fontSize: 16, borderWidth: 1, borderColor: '#555', borderRadius: 10, backgroundColor: '#1f1f1f', color: '#fff', paddingHorizontal: 15, caretColor: '#fff' },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#555',
+    borderRadius: 10,
+    backgroundColor: '#1f1f1f',
+    color: '#fff',
+    paddingHorizontal: 15,
+    caretColor: '#fff'
+  },
   flatList: { flex: 1 },
   listContainer: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100 },
   emptyText: { textAlign: 'center', color: '#aaa', marginTop: 20, fontSize: 16 },
-  item: { flexDirection: 'row', padding: 15, alignItems: 'center', backgroundColor: '#2a2a2a', marginBottom: 10, borderRadius: 10 },
+  item: {
+    flexDirection: 'row',
+    padding: 15,
+    alignItems: 'center',
+    backgroundColor: '#2a2a2a',
+    marginBottom: 10,
+    borderRadius: 10
+  },
   cover: { width: 60, height: 60, borderRadius: 8, marginRight: 15 },
   songInfo: { flex: 1, justifyContent: 'center' },
   title: { fontSize: 16, fontWeight: '600', color: '#fff', marginBottom: 4 },
   artist: { fontSize: 14, color: '#aaa' },
-  playButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#00D4AA', justifyContent: 'center', alignItems: 'center' },
+  playButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#00D4AA',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
   favoriteButton: { marginRight: 10, justifyContent: 'center', alignItems: 'center' },
-
-  // Modal styles
-  modalBackground: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
   modalContainer: { width: '80%', backgroundColor: '#1a1a1a', borderRadius: 10, padding: 20 },
-  modalInput: { borderWidth: 1, borderColor: '#555', borderRadius: 8, padding: 10, color: '#fff', backgroundColor: '#2a2a2a', marginTop: 10 },
-  playlistItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#333' }
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#555',
+    borderRadius: 8,
+    padding: 10,
+    color: '#fff',
+    backgroundColor: '#2a2a2a',
+    marginTop: 10
+  },
+  playlistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333'
+  }
 });
