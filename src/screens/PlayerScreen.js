@@ -1274,7 +1274,11 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
-import { getFavorites, saveFavorites } from '../services/storageService';
+import { 
+  getFavorites, 
+  saveFavorites, 
+  saveListeningHistory 
+} from '../services/storageService';
 import { songs } from '../data/songs';
 import useAudioPlayer from '../hooks/useAudioPlayer';
 
@@ -1408,6 +1412,48 @@ const loadSong = async (index) => {
   }
 };
 
+// const loadSong = async (index) => {
+//   if (isLoadingRef.current) return;
+//   isLoadingRef.current = true;
+
+//   try {
+//     await unloadSound();
+//     const track = songList[index];
+//     if (!track) {
+//       isLoadingRef.current = false;
+//       return;
+//     }
+
+//     const { sound } = await Audio.Sound.createAsync(track.uri, { shouldPlay: true, volume });
+
+//     if (!sound) {
+//       console.warn('Không tạo được sound cho', track?.title);
+//       isLoadingRef.current = false;
+//       return;
+//     }
+
+//     soundRef.current = sound;
+//     setIsPlaying(true);
+
+//     const status = await sound.getStatusAsync();
+//     setDuration(status?.durationMillis || 1);
+//     setPosition(status?.positionMillis || 0);
+//     sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
+
+//     // ✅ Lưu lịch sử nghe
+//     await saveListeningHistory(track.id);
+
+//     // ✅ Gửi event thông báo HomeScreen cập nhật
+//     navigation.emit({ type: 'historyUpdate', data: { song: track } });
+
+//     setCurrentIndex(index);
+//     currentIndexRef.current = index;
+//   } catch (e) {
+//     console.warn('loadSong error:', e);
+//   } finally {
+//     isLoadingRef.current = false;
+//   }
+// };
 
 
   const onPlaybackStatusUpdate = async (status) => {
